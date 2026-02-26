@@ -81,7 +81,7 @@ dash_init(int argc, char **argv)
 	rootpid = getpid();
 	init();
 	setstackmark(&smark);
-	procargs(argc, argv);
+	procargs(argv);
 
 	state = 3;
 

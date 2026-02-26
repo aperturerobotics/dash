@@ -14,8 +14,8 @@
 /* Package info */
 #define PACKAGE_NAME "dash"
 #define PACKAGE_TARNAME "dash"
-#define PACKAGE_VERSION "0.5.11"
-#define PACKAGE_STRING "dash 0.5.11"
+#define PACKAGE_VERSION "0.5.13.1"
+#define PACKAGE_STRING "dash 0.5.13.1"
 
 /* SMALL mode: no libedit, no history */
 #define SMALL 1
@@ -63,6 +63,9 @@
 #define HAVE_STRSIGNAL 1
 /* #undef HAVE_FACCESSAT */
 
+/* WASI has no F_DUPFD_CLOEXEC */
+#define HAVE_F_DUPFD_CLOEXEC 0
+
 /* WASI has no separate 64-bit file ops */
 #define fstat64 fstat
 #define lstat64 lstat
@@ -77,6 +80,9 @@
 
 /* WASI has no fnmatch */
 /* #undef HAVE_FNMATCH */
+
+/* Use wait3 stub from wasi-compat/sys/wait.h (avoids broken 4-arg waitpid fallback) */
+#define HAVE_WAIT3 1
 
 /* WASI emulated signal provides signal()/raise() only. */
 #define HAVE_SIGNAL 1
