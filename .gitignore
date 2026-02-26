@@ -40,3 +40,4 @@ Makefile
 .Spotlight*
 .Trash*
 *[Tt]humbs.db
+build-wasi/
