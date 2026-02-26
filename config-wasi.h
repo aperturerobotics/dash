@@ -172,6 +172,17 @@ static inline int sigaction(int sig, const struct sigaction *act,
 }
 
 /*
+ * Host command execution for WASI.
+ *
+ * External commands are dispatched to the host via an imported function.
+ * The host (Go/wazero) implements cat, mkdir, ls, etc. natively.
+ * argc/argv follow the standard C convention (argv[0] is the command name).
+ * Returns: exit status (0-255), or 127 if the command is not found.
+ */
+__attribute__((__import_module__("env"), __import_name__("__exec_command")))
+int __wasi_host_exec(int argc, char **argv);
+
+/*
  * POSIX process stubs for WASI.
  *
  * WASI has no fork/exec/pipe/dup. These are referenced throughout

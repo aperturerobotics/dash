@@ -893,7 +893,12 @@ bail:
 	if (cmdentry.cmdtype != CMDBUILTIN ||
 	    !(cmdentry.u.cmd->flags & BUILTIN_REGULAR)) {
 		path = unlikely(path) ? path : pathval();
+#ifdef __wasi__
+		/* WASI: don't print "not found" — host exec handles unknown commands. */
+		find_command(argv[0], &cmdentry, cmd_flag, path);
+#else
 		find_command(argv[0], &cmdentry, cmd_flag | DO_ERR, path);
+#endif
 	}
 
 	jp = NULL;
@@ -901,13 +906,34 @@ bail:
 	/* Execute the command. */
 	switch (cmdentry.cmdtype) {
 	case CMDUNKNOWN:
+#ifdef __wasi__
+		/* WASI: try host exec for unknown commands. */
+		{
+			int argc_count = 0;
+			char **p = argv;
+			while (*p++) argc_count++;
+			status = __wasi_host_exec(argc_count, argv);
+		}
+		goto bail;
+#else
 		status = 127;
 #ifdef FLUSHERR
 		flushout(&errout);
 #endif
 		goto bail;
+#endif
 
 	default:
+#ifdef __wasi__
+		/* WASI: no fork/exec. Dispatch to host via imported function. */
+		{
+			int argc_count = 0;
+			char **p = argv;
+			while (*p++) argc_count++;
+			exitstatus = __wasi_host_exec(argc_count, argv);
+		}
+		break;
+#else
 		flush_input();
 
 		/* Fork off a child process if necessary. */
@@ -918,6 +944,7 @@ bail:
 		}
 		shellexec(argv, path, cmdentry.u.index);
 		/* NOTREACHED */
+#endif
 
 	case CMDBUILTIN:
 		if (evalbltin(cmdentry.u.cmd, argc, argv, flags) &&
