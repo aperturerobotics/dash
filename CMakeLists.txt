@@ -88,8 +88,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
         target_compile_options(dash_wasi PRIVATE
             -Wall
             -include ${CMAKE_SOURCE_DIR}/config-wasi.h
-            # Enable setjmp/longjmp via WASM Exception Handling proposal.
-            -mllvm -wasm-enable-sjlj
             # Suppress warnings from dash's older C style.
             -Wno-string-plus-int
             -Wno-unused-value
@@ -97,6 +95,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
             -Wno-missing-field-initializers
             -Wno-parentheses
         )
+        # setjmp/longjmp provided by host via snapshot/restore (no WASM EH).
+        # Export __stack_pointer and __heap_base for C stack save/restore.
         target_link_options(dash_wasi PRIVATE
             -mexec-model=reactor
             -Wl,--export-dynamic
@@ -104,7 +104,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
             -Wl,--export=free
             -Wl,--export=realloc
             -Wl,--export=calloc
-            -lsetjmp
+            -Wl,--export=__stack_pointer
+            -Wl,--export=__heap_base
             -lwasi-emulated-signal
             -lwasi-emulated-process-clocks
             -lwasi-emulated-getpid

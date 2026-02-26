@@ -7,6 +7,10 @@
  * linear memory between calls.
  *
  * Based on the QuickJS WASI reactor pattern.
+ *
+ * setjmp/longjmp constraint: wazero's snapshot/restore requires that
+ * setjmp and longjmp occur within the same exported function invocation.
+ * Each export that might trigger an error sets up its own handler.
  */
 
 #include <stdlib.h>
@@ -98,12 +102,17 @@ done:
  * repeatedly with command strings. Shell state (variables, functions,
  * aliases, exit status) persists between calls.
  *
+ * Each call sets up its own exception handler so that all setjmp/longjmp
+ * pairs stay within this invocation (required by wazero snapshot/restore).
+ *
  * Returns the exit status of the last command.
  */
 __attribute__((export_name("dash_eval")))
 int
 dash_eval(const char *cmd, int len)
 {
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
 	char *s;
 	int status;
 
@@ -113,24 +122,31 @@ dash_eval(const char *cmd, int len)
 	if (!cmd || len <= 0)
 		return 0;
 
-	/* Copy the command string since evalstring may modify it. */
+	savehandler = handler;
+	if (setjmp(jmploc.loc)) {
+		handler = savehandler;
+		FORCEINTON;
+		return exitstatus;
+	}
+	handler = &jmploc;
+
 	s = malloc(len + 1);
-	if (!s)
+	if (!s) {
+		handler = savehandler;
 		return -1;
+	}
 	memcpy(s, cmd, len);
 	s[len] = '\0';
 
-	/* evalstring handles its own setjmp for error recovery. */
 	status = evalstring(s, 0);
 
 	free(s);
+	handler = savehandler;
 	return status;
 }
 
 /*
  * Get the current exit status.
- *
- * Returns the exit status of the last command executed.
  */
 __attribute__((export_name("dash_get_exitstatus")))
 int
@@ -158,15 +174,31 @@ dash_getvar(const char *name)
 /*
  * Set a shell variable.
  *
+ * Sets up its own exception handler for safety.
+ *
  * Returns 0 on success, -1 on error.
  */
 __attribute__((export_name("dash_setvar")))
 int
 dash_setvar(const char *name, const char *value)
 {
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
+
 	if (!reactor_initialized)
 		return -1;
+
+	savehandler = handler;
+	if (setjmp(jmploc.loc)) {
+		handler = savehandler;
+		FORCEINTON;
+		return -1;
+	}
+	handler = &jmploc;
+
 	setvar(name, value, 0);
+
+	handler = savehandler;
 	return 0;
 }
 
@@ -180,7 +212,4 @@ dash_destroy(void)
 	if (!reactor_initialized)
 		return;
 	reactor_initialized = 0;
-	/* exitshell() would call exit(). In reactor mode we just
-	 * mark as uninitialized. The WASM instance will be
-	 * discarded by the host. */
 }
