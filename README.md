@@ -70,7 +70,6 @@ Output: `build-wasi/dash.wasm`
 ## Related Projects
 
 - [go-dash-wasi-reactor](https://github.com/aperturerobotics/go-dash-wasi-reactor) - Go module embedding the WASM binary with wazero wrapper
-- [wasivm](https://github.com/aperturerobotics/wasivm) - Full VM environment with filesystem and Go-implemented commands
 
 ## License
 
